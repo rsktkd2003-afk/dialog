@@ -118,3 +118,30 @@ describe("buildSuggestions", () => {
     expect(ids({ ...base, measuredSpikeReaches: [{ date: "2026-09-20", valueCm: 320 }, { date: "2026-09-25", valueCm: 320 }, { date: "2026-10-10", valueCm: 319 }] })).toEqual([]);
   });
 });
+
+describe("新形式の不調記録", () => {
+  const sym = (date: string, over: Partial<NonNullable<SuggestionInput["symptoms"]>[number]> = {}) => ({
+    date, siteLabel: "足首", kind: "discomfort" as const, kindLabel: "違和感", level: 3, impact: "slight" as const, ...over,
+  });
+  it("痛みの記録は医療専門職への相談を案内（診断しない）", () => {
+    const s = buildSuggestions({ ...base, symptoms: [sym("2026-10-19", { kind: "pain", kindLabel: "痛み" })] });
+    expect(s[0]!.id).toBe("pain");
+    expect(s[0]!.detail).toContain("診断を行いません");
+    expect(s[0]!.evidence[0]).toContain("足首：痛み 程度3/10");
+  });
+  it("動作が制限される記録も案内", () => {
+    expect(ids({ ...base, symptoms: [sym("2026-10-19", { impact: "limited" })] })).toContain("pain");
+  });
+  it("軽い違和感1件だけでは案内しない。程度0は数えない", () => {
+    expect(ids({ ...base, symptoms: [sym("2026-10-19")] })).not.toContain("pain");
+    expect(ids({ ...base, symptoms: [sym("2026-10-19", { kind: "pain", level: 0 })] })).not.toContain("pain");
+  });
+  it("同じ部位が14日中3日以上で案内", () => {
+    const s = ["2026-10-08", "2026-10-12", "2026-10-16"].map((d) => sym(d));
+    expect(ids({ ...base, symptoms: s })).toContain("pain");
+    expect(ids({ ...base, symptoms: s.slice(1) })).not.toContain("pain");
+  });
+  it("8日以上前の痛みは対象外", () => {
+    expect(ids({ ...base, symptoms: [sym("2026-10-12", { kind: "pain" })] })).not.toContain("pain");
+  });
+});

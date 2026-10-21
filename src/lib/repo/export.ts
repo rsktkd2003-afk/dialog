@@ -12,6 +12,7 @@ import {
   practiceSessions,
   profiles,
   recipeItems,
+  symptomLogs,
   users,
   workoutSets,
   workoutTemplates,
@@ -48,5 +49,6 @@ export async function exportUserData(db: Db, userId: string) {
     workoutTemplates: await db.select().from(workoutTemplates).where(eq(workoutTemplates.userId, userId)),
     practiceSessions: await db.select().from(practiceSessions).where(eq(practiceSessions.userId, userId)),
     conditionLogs: await db.select().from(conditionLogs).where(eq(conditionLogs.userId, userId)),
+    symptomLogs: await db.select().from(symptomLogs).where(eq(symptomLogs.userId, userId)),
   };
 }

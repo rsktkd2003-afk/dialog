@@ -52,7 +52,7 @@ export default async function BodyPage() {
       <div className="mb-4 grid grid-cols-2 gap-2">
         <LinkButton href="/body/new">体重・測定を記録</LinkButton>
         <LinkButton href="/body/jump/new" variant="secondary">到達点を記録</LinkButton>
-        <LinkButton href="/condition" variant="secondary">コンディション</LinkButton>
+        <LinkButton href="/condition" variant="secondary">体調・不調</LinkButton>
         <LinkButton href="/analysis" variant="secondary">記録の関連を見る</LinkButton>
       </div>
 

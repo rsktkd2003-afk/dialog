@@ -37,7 +37,7 @@ export default async function PracticePage() {
 
   return (
     <>
-      <PageHeader title="バレー練習" action={<Link href="/body/jump/new" className="text-sm font-semibold text-accent">到達点を記録</Link>} />
+      <PageHeader title="バレー練習" back="/" action={<Link href="/body/jump/new" className="text-sm font-semibold text-accent">到達点を記録</Link>} />
       <div className="space-y-4">
         <Card>
           <PracticeForm date={today} minutes={profile?.practiceMinutes ?? null} intensity={profile?.practiceIntensity ?? null} />

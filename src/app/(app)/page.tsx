@@ -4,8 +4,9 @@ import { Meter } from "@/components/charts/Meter";
 import { Badge, Card, EmptyState, LinkButton, Notice, PageHeader, Stat, fmt, fmtRange } from "@/components/ui";
 import { requireUser } from "@/lib/auth/server";
 import { GOAL_LABELS, type Goal } from "@/lib/calc/types";
-import { formatDateJp, todayString } from "@/lib/date";
+import { formatDateJp, formatShortDate, todayString } from "@/lib/date";
 import { getDb } from "@/lib/db/client";
+import { SYMPTOM_IMPACT_LABELS, SYMPTOM_KIND_LABELS, SYMPTOM_SIDE_LABELS, SYMPTOM_SITE_LABELS } from "@/lib/repo/symptoms";
 import { loadDashboard, type DashboardCard } from "@/lib/services/dashboard";
 
 export const dynamic = "force-dynamic";
@@ -42,7 +43,7 @@ export default async function HomePage() {
       </Card>
     ),
     plan: (
-      <Card key="plan" title="今日の運動">
+      <Card key="plan" title="今日の運動（栄養目標の計算に使用）">
         {d.targets.plan.labels.length > 0 ? (
           <ul className="space-y-1 text-sm">
             {d.targets.plan.labels.map((l) => (
@@ -72,8 +73,37 @@ export default async function HomePage() {
         )}
       </Card>
     ),
+    symptoms: (
+      <Card key="symptoms" title="体の不調・違和感" action={<Link href="/condition#symptom-form" className="text-sm font-semibold text-accent">＋ 不調を記録</Link>}>
+        {d.recentSymptoms.length === 0 ? (
+          <EmptyState>直近14日の不調の記録はありません</EmptyState>
+        ) : (
+          <>
+            <ul className="divide-y divide-line">
+              {d.recentSymptoms.slice(0, 3).map((x) => (
+                <li key={x.id} className="flex items-center justify-between gap-2 py-2">
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-medium">
+                      {SYMPTOM_SITE_LABELS[x.site]}・{SYMPTOM_SIDE_LABELS[x.side]}／{SYMPTOM_KIND_LABELS[x.kind]}
+                    </div>
+                    <div className="num text-xs text-muted">
+                      {formatShortDate(x.date)}・程度 {x.level}/10・{SYMPTOM_IMPACT_LABELS[x.impact]}
+                    </div>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <p className="text-xs text-muted">痛みや違和感の記録は診断ではありません。</p>
+              <span className="shrink-0 rounded-full bg-surface-2 px-2.5 py-1 text-xs text-ink-2">直近14日 {d.recentSymptoms.length}件</span>
+            </div>
+            <Link href="/condition" className="mt-1 inline-block text-xs text-accent underline">履歴を見る</Link>
+          </>
+        )}
+      </Card>
+    ),
     weight: (
-      <Card key="weight" title="体重の推移（90日）" action={<Link href="/body/new" className="text-sm font-semibold text-accent">記録する</Link>}>
+      <Card key="weight" title="身体測定（体重の推移・90日）" action={<Link href="/body/new" className="text-sm font-semibold text-accent">記録する</Link>}>
         {d.weights.length > 0 ? (
           <LineChart points={d.weights.map((w) => ({ date: w.date, value: w.weightKg }))} unit="kg" label="体重" />
         ) : (

@@ -15,9 +15,12 @@ export function optionalNumber(min: number, max: number, label: string) {
   );
 }
 
+/** 必須項目の空欄は未入力として扱う（null を数値変換すると 0 になってしまうため） */
+const emptyToUndefined = (v: unknown) => (v == null || (typeof v === "string" && v.trim() === "") ? undefined : v);
+
 export function requiredNumber(min: number, max: number, label: string) {
   return z.preprocess(
-    emptyToNull,
+    emptyToUndefined,
     z.coerce
       .number({ error: `${label}を入力してください` })
       .min(min, `${label}は${min}以上で入力してください`)
@@ -39,7 +42,7 @@ export function optionalInt(min: number, max: number, label: string) {
 
 export function requiredInt(min: number, max: number, label: string) {
   return z.preprocess(
-    emptyToNull,
+    emptyToUndefined,
     z.coerce
       .number({ error: `${label}を入力してください` })
       .int(`${label}は整数で入力してください`)

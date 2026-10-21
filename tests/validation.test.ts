@@ -78,3 +78,12 @@ describe("練習・セット・コンディション", () => {
     expect(conditionInput.safeParse({ date: "2026-10-01", fatigue: "5" }).success).toBe(true);
   });
 });
+
+describe("必須の数値項目", () => {
+  it("空欄を0として受け付けない", () => {
+    const s = { exerciseId: "00000000-0000-4000-8000-000000000000", weightKg: "", reps: "5" };
+    expect(setInput.safeParse(s).success).toBe(false);
+    expect(setInput.safeParse({ ...s, weightKg: "0" }).success).toBe(true);
+    expect(practiceInput.safeParse({ date: "2026-10-01", intensity: "high", startTime: "", durationMin: "" }).success).toBe(false);
+  });
+});

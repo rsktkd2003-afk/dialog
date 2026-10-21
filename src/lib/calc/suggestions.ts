@@ -33,6 +33,15 @@ export type ConditionDay = {
   sleepHours: number | null;
   discomforts: { site: DiscomfortSite; level: number }[];
 };
+/** 新形式の不調記録（symptom_logs）。level は 0〜10 */
+export type SymptomPoint = {
+  date: string;
+  siteLabel: string;
+  kind: "pain" | "discomfort" | "tightness" | "numbness" | "other";
+  kindLabel: string;
+  level: number;
+  impact: "none" | "slight" | "limited" | "unable";
+};
 export type StrengthTrend = { exerciseName: string; recentBest: number | null; previousBest: number | null };
 export type ReachPoint = { date: string; valueCm: number };
 
@@ -58,6 +67,8 @@ export type SuggestionInput = {
   strengthTrends: StrengthTrend[];
   /** 実測の最高到達点のみ */
   measuredSpikeReaches: ReachPoint[];
+  /** 新形式の不調記録 */
+  symptoms?: SymptomPoint[];
 };
 
 export function addDays(date: string, days: number): string {
@@ -97,17 +108,34 @@ export function buildSuggestions(input: SuggestionInput): Suggestion[] {
     }
   }
   const recurring = [...siteDays.entries()].filter(([, days]) => days.size >= 3);
-  if (painful.length > 0 || recurring.length > 0) {
+  // 新形式：程度1以上の痛み・しびれ、または動作が制限される／運動できない記録（直近7日）
+  const recentSymptoms = (input.symptoms ?? []).filter((x) => x.date > addDays(today, -14) && x.date <= today && x.level >= 1);
+  const flagged = recentSymptoms.filter(
+    (x) => x.date > weekAgo && (x.kind === "pain" || x.kind === "numbness" || x.impact === "limited" || x.impact === "unable"),
+  );
+  const symptomSiteDays = new Map<string, Set<string>>();
+  for (const x of recentSymptoms) {
+    if (!symptomSiteDays.has(x.siteLabel)) symptomSiteDays.set(x.siteLabel, new Set());
+    symptomSiteDays.get(x.siteLabel)!.add(x.date);
+  }
+  const recurringSymptoms = [...symptomSiteDays.entries()].filter(([, days]) => days.size >= 3);
+
+  if (painful.length > 0 || recurring.length > 0 || flagged.length > 0 || recurringSymptoms.length > 0) {
     const evidence = [
+      ...flagged.map((x) => `${x.date} ${x.siteLabel}：${x.kindLabel} 程度${x.level}/10`),
+      ...recurringSymptoms.map(([site, days]) => `${site}の不調：直近14日で${days.size}日記録`),
       ...painful.map((p) => `${p.date} ${SITE_LABELS[p.site]}：${p.level >= 3 ? "強い痛み" : "痛み"}`),
       ...recurring.map(([site, days]) => `${SITE_LABELS[site]}の違和感・痛み：直近14日で${days.size}日記録`),
     ];
     out.push({
       id: "pain",
       level: "care",
-      title: recurring.length > 0 ? "同じ部位の違和感が繰り返し記録されています" : "痛みの記録があります",
+      title:
+        recurring.length > 0 || recurringSymptoms.length > 0
+          ? "同じ部位の不調が繰り返し記録されています"
+          : "痛み・不調の記録があります",
       detail: PAIN_CONSULT_MESSAGE,
-      evidence,
+      evidence: [...new Set(evidence)],
     });
   }
 

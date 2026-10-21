@@ -22,15 +22,20 @@ export const conditionInput = z.object({
   soreness: optionalInt(LIMITS.scale5[0], LIMITS.scale5[1], "筋肉痛"),
   feeling: optionalInt(LIMITS.scale5[0], LIMITS.scale5[1], "調子"),
   isRestDay: z.coerce.boolean().default(false),
-  discomforts: z.array(discomfort).max(DISCOMFORT_SITES.length * 3).default([]),
+  /** 旧形式の不調。省略した場合、保存済みの値は変更しない */
+  discomforts: z.array(discomfort).max(DISCOMFORT_SITES.length * 3).optional(),
   note: optionalText(500),
 });
 export type ConditionInput = z.infer<typeof conditionInput>;
 export type ConditionLog = typeof conditionLogs.$inferSelect;
 
-/** 1日1件。同じ日に再入力した場合は上書きする。 */
+/**
+ * 1日1件。同じ日に再入力した場合は上書きする。
+ * discomforts を省略した場合は、保存済みの旧形式の不調記録を変更しない（新しい不調記録は symptom_logs に保存）。
+ */
 export async function upsertCondition(db: Db, userId: string, input: ConditionInput): Promise<ConditionLog> {
-  const values = { ...input, discomforts: input.discomforts as Discomfort[] };
+  const { discomforts, ...rest } = input;
+  const values = discomforts === undefined ? rest : { ...rest, discomforts: discomforts as Discomfort[] };
   const [row] = await db
     .insert(conditionLogs)
     .values({ ...values, userId })

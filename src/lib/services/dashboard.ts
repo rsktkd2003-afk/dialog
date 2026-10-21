@@ -8,14 +8,20 @@ import { listBodyMeasurements, listJumpMeasurements } from "../repo/body";
 import { getCondition, listConditions } from "../repo/condition";
 import { dailyNutrition } from "../repo/meals";
 import { listPractices } from "../repo/practice";
+import { SYMPTOM_KIND_LABELS, SYMPTOM_SITE_LABELS, listSymptoms } from "../repo/symptoms";
 import { getProfile } from "../repo/profile";
 import { strengthTrends } from "../repo/training";
 import { getTargetsForDate } from "./targets";
 
 /** 最優先目標ごとのホーム画面カードの表示順 */
-export type DashboardCard = "nutrition" | "plan" | "condition" | "weight" | "jump" | "strength";
+export type DashboardCard = "nutrition" | "plan" | "condition" | "symptoms" | "weight" | "jump" | "strength";
 
 export function cardOrder(goal: Goal | null): DashboardCard[] {
+  // 「体の不調」は各並び順で「今日の体調」の直後に表示する
+  return baseOrder(goal).flatMap((c) => (c === "condition" ? ["condition", "symptoms"] : [c]));
+}
+
+function baseOrder(goal: Goal | null): Exclude<DashboardCard, "symptoms">[] {
   switch (goal) {
     case "jump":
     case "spike":
@@ -41,7 +47,7 @@ export async function loadDashboard(db: Db, userId: string, today: string) {
   const since56 = addDays(today, -55);
   const since90 = addDays(today, -89);
 
-  const [nutrition, practices, conditions, todayCondition, bodies, jumps, trends] = await Promise.all([
+  const [nutrition, practices, conditions, todayCondition, bodies, jumps, trends, symptoms] = await Promise.all([
     dailyNutrition(db, userId, addDays(today, -7), today),
     listPractices(db, userId, { from: addDays(today, -14), to: today }),
     listConditions(db, userId, { from: addDays(today, -14), to: today }),
@@ -49,6 +55,7 @@ export async function loadDashboard(db: Db, userId: string, today: string) {
     listBodyMeasurements(db, userId, { from: since90, to: today }),
     listJumpMeasurements(db, userId, { limit: 300 }),
     strengthTrends(db, userId, today, since56, since28),
+    listSymptoms(db, userId, { from: addDays(today, -13), to: today, limit: 100 }),
   ]);
 
   const todayNutrition = nutrition.find((n) => n.date === today) ?? null;
@@ -78,6 +85,14 @@ export async function loadDashboard(db: Db, userId: string, today: string) {
     })),
     strengthTrends: trends,
     measuredSpikeReaches: spikeMeasured.map((j) => ({ date: j.date, valueCm: j.valueCm })),
+    symptoms: symptoms.map((x) => ({
+      date: x.date,
+      siteLabel: SYMPTOM_SITE_LABELS[x.site],
+      kind: x.kind,
+      kindLabel: SYMPTOM_KIND_LABELS[x.kind],
+      level: x.level,
+      impact: x.impact,
+    })),
   });
 
   const lowerBody = trends.filter((t) => t.bodyPart === "lower" && t.recentBest != null);
@@ -96,6 +111,8 @@ export async function loadDashboard(db: Db, userId: string, today: string) {
     latestBlock,
     latestJumpHeight,
     strength: { lowerBody, other: otherStrength },
+    /** 直近14日の不調記録（新しい順） */
+    recentSymptoms: symptoms,
     suggestions,
   };
 }

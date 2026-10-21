@@ -405,3 +405,58 @@ export const conditionLogs = pgTable(
     check("condition_scale_check", sql`coalesce(${t.fatigue}, 1) between 1 and 5 and coalesce(${t.soreness}, 1) between 1 and 5`),
   ],
 );
+
+// ---------------------------------------------------------------------------
+// 体の不調（同じ日に複数件記録できる詳細記録）
+// condition_logs.discomforts（旧形式・1日1件）は互換のため残し、参照のみ行う
+// ---------------------------------------------------------------------------
+
+export const symptomSiteEnum = pgEnum("symptom_site", [
+  "ankle",
+  "knee",
+  "shoulder",
+  "lower_back",
+  "wrist",
+  "hip",
+  "calf",
+  "thigh",
+  "neck",
+  "back",
+  "other",
+]);
+export const symptomSideEnum = pgEnum("symptom_side", ["right", "left", "both", "center", "na"]);
+export const symptomKindEnum = pgEnum("symptom_kind", ["pain", "discomfort", "tightness", "numbness", "other"]);
+export const symptomSituationEnum = pgEnum("symptom_situation", [
+  "landing",
+  "during_exercise",
+  "after_exercise",
+  "daily_life",
+  "at_rest",
+  "other",
+]);
+export const symptomImpactEnum = pgEnum("symptom_impact", ["none", "slight", "limited", "unable"]);
+
+export const symptomLogs = pgTable(
+  "symptom_logs",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    date: date("date").notNull(),
+    site: symptomSiteEnum("site").notNull(),
+    side: symptomSideEnum("side").notNull(),
+    kind: symptomKindEnum("kind").notNull(),
+    /** 0=なし 〜 10=非常に強い（主観） */
+    level: smallint("level").notNull(),
+    situation: symptomSituationEnum("situation").notNull(),
+    impact: symptomImpactEnum("impact").notNull(),
+    note: text("note"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    index("symptom_user_date_idx").on(t.userId, t.date),
+    check("symptom_level_check", sql`${t.level} between 0 and 10`),
+    check("symptom_note_length_check", sql`${t.note} is null or char_length(${t.note}) <= 500`),
+  ],
+);
